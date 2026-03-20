@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Memory Decay Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --border: #2a2a30;
+    --text: #e0ddd5;
+    --text-dim: #7a7872;
+    --accent: #c8f06a;
+    --accent2: #6ac8f0;
+    --accent3: #f0a06a;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Instrument Serif', serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 1.5rem;
+  }
+
+  header {
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    line-height: 1.15;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.5rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .formula-display {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .formula-display code {
+    color: var(--accent);
+    font-family: var(--mono);
+  }
+
+  /* Sliders */
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  @media (min-width: 600px) {
+    .controls { grid-template-columns: 1fr 1fr 1fr; }
+  }
+
+  .slider-group label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+  }
+
+  .slider-group label span {
+    float: right;
+    color: var(--accent);
+    font-size: 0.85rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+
+  /* Chart */
+  .chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+    position: relative;
+  }
+
+  .chart-wrap canvas {
+    width: 100% !important;
+    max-height: 360px;
+  }
+
+  /* Stat Cards */
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 500px) {
+    .stats { grid-template-columns: 1fr; }
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+  }
+
+  .stat-card .stat-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 0.4rem;
+  }
+
+  .stat-card .stat-value {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--accent);
+    font-family: var(--mono);
+  }
+
+  .stat-card.decay .stat-value { color: var(--accent3); }
+  .stat-card.boost .stat-value { color: var(--accent2); }
+
+  /* Interpretation */
+  .interpretation {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 1rem 1.25rem;
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: var(--text);
+    margin-bottom: 2.5rem;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .legend-swatch {
+    width: 20px;
+    height: 3px;
+    border-radius: 1px;
+  }
+
+  .legend-swatch.solid { background: var(--accent); height: 3px; }
+  .legend-swatch.dashed {
+    background: repeating-linear-gradient(90deg, var(--accent3) 0 5px, transparent 5px 9px);
+    height: 2px;
+  }
+  .legend-swatch.ref {
+    background: repeating-linear-gradient(90deg, var(--text-dim) 0 3px, transparent 3px 7px);
+    height: 2px;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 1.25rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  footer a {
+    color: var(--text-dim);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color 0.2s;
+  }
+
+  footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>The Memory Decay Playground</h1>
+    <p class="subtitle">Ebbinghaus-based AI memory decay — interactive exploration</p>
+  </header>
+
+  <div class="formula-display">
+    <code>strength = importance × e<sup>−λ_eff × days</sup> × (1 + recall_count × 0.2)</code> &nbsp;&nbsp;where&nbsp;&nbsp; <code>λ_eff = 0.16 × (1 − importance × 0.8)</code>
+  </div>
+
+  <div class="controls">
+    <div class="slider-group">
+      <label>Importance <span id="imp-val">0.50</span></label>
+      <input type="range" id="importance" min="0.1" max="1.0" step="0.01" value="0.50">
+    </div>
+    <div class="slider-group">
+      <label>Days elapsed <span id="day-val">7</span></label>
+      <input type="range" id="days" min="0" max="90" step="1" value="7">
+    </div>
+    <div class="slider-group">
+      <label>Recall count <span id="rec-val">0</span></label>
+      <input type="range" id="recalls" min="0" max="20" step="1" value="0">
+    </div>
+  </div>
+
+  <div class="chart-wrap">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch solid"></div> Current settings</div>
+      <div class="legend-item"><div class="legend-swatch dashed"></div> No recalls (baseline)</div>
+      <div class="legend-item"><div class="legend-swatch ref"></div> Max importance, no recalls</div>
+    </div>
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Memory Strength</div>
+      <div class="stat-value" id="stat-strength">—</div>
+    </div>
+    <div class="stat-card decay">
+      <div class="stat-label">λ_eff Decay Rate</div>
+      <div class="stat-value" id="stat-lambda">—</div>
+    </div>
+    <div class="stat-card boost">
+      <div class="stat-label">Recall Boost</div>
+      <div class="stat-value" id="stat-boost">—</div>
+    </div>
+  </div>
+
+  <div class="interpretation" id="interpretation"></div>
+
+  <footer>
+    Concept by <a href="https://dev.to/sachit_mishra_686a94d1bb5/i-built-memory-decay-for-ai-agents-using-the-ebbinghaus-forgetting-curve-1b0e" target="_blank" rel="noopener">Sachit Mishra · DEV.to article</a><br>
+    Interactive by Vatsal Bass · Revaquo
+  </footer>
+</div>
+
+<script>
+  const impSlider = document.getElementById('importance');
+  const daySlider = document.getElementById('days');
+  const recSlider = document.getElementById('recalls');
+  const impVal = document.getElementById('imp-val');
+  const dayVal = document.getElementById('day-val');
+  const recVal = document.getElementById('rec-val');
+
+  function calcLambda(importance) {
+    return 0.16 * (1 - importance * 0.8);
+  }
+
+  function calcStrength(importance, days, recalls) {
+    const lambda = calcLambda(importance);
+    return importance * Math.exp(-lambda * days) * (1 + recalls * 0.2);
+  }
+
+  function generateCurve(importance, recalls) {
+    const pts = [];
+    for (let d = 0; d <= 90; d++) {
+      pts.push(calcStrength(importance, d, recalls));
+    }
+    return pts;
+  }
+
+  const days = Array.from({ length: 91 }, (_, i) => i);
+
+  const ctx = document.getElementById('chart').getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [
+        {
+          label: 'Current',
+          data: [],
+          borderColor: '#c8f06a',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'Marker',
+          data: [],
+          borderColor: 'transparent',
+          backgroundColor: '#c8f06a',
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          showLine: false,
+          fill: false,
+        },
+        {
+          label: 'No recalls',
+          data: [],
+          borderColor: '#f0a06a',
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'Max importance ref',
+          data: [],
+          borderColor: '#7a7872',
+          borderWidth: 1,
+          borderDash: [3, 4],
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 2.2,
+      animation: { duration: 0 },
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#16161a',
+          borderColor: '#2a2a30',
+          borderWidth: 1,
+          titleFont: { family: "'DM Mono', monospace", size: 11 },
+          bodyFont: { family: "'DM Mono', monospace", size: 11 },
+          titleColor: '#7a7872',
+          bodyColor: '#e0ddd5',
+          padding: 10,
+          callbacks: {
+            title: (items) => `Day ${items[0].label}`,
+            label: (item) => {
+              if (item.datasetIndex === 1) return null;
+              const names = ['Current', '', 'Baseline (no recalls)', 'Max imp. ref'];
+              return `${names[item.datasetIndex]}: ${item.parsed.y.toFixed(3)}`;
+            },
+          },
+          filter: (item) => item.datasetIndex !== 1,
+        },
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Days',
+            color: '#7a7872',
+            font: { family: "'DM Mono', monospace", size: 11 },
+          },
+          ticks: {
+            color: '#7a7872',
+            font: { family: "'DM Mono', monospace", size: 10 },
+            maxTicksLimit: 10,
+          },
+          grid: { color: '#1e1e22' },
+          border: { color: '#2a2a30' },
+        },
+        y: {
+          min: 0,
+          title: {
+            display: true,
+            text: 'Strength',
+            color: '#7a7872',
+            font: { family: "'DM Mono', monospace", size: 11 },
+          },
+          ticks: {
+            color: '#7a7872',
+            font: { family: "'DM Mono', monospace", size: 10 },
+          },
+          grid: { color: '#1e1e22' },
+          border: { color: '#2a2a30' },
+        },
+      },
+    },
+  });
+
+  function findFadeDay(importance, recalls, threshold) {
+    for (let d = 0; d <= 90; d++) {
+      if (calcStrength(importance, d, recalls) < threshold) return d;
+    }
+    return null;
+  }
+
+  function update() {
+    const imp = parseFloat(impSlider.value);
+    const day = parseInt(daySlider.value);
+    const rec = parseInt(recSlider.value);
+
+    impVal.textContent = imp.toFixed(2);
+    dayVal.textContent = day;
+    recVal.textContent = rec;
+
+    const currentCurve = generateCurve(imp, rec);
+    const baselineCurve = generateCurve(imp, 0);
+    const refCurve = generateCurve(1.0, 0);
+
+    // Current curve
+    chart.data.datasets[0].data = currentCurve;
+
+    // Marker dot at current day
+    const markerData = new Array(91).fill(null);
+    markerData[day] = currentCurve[day];
+    chart.data.datasets[1].data = markerData;
+    chart.data.datasets[1].pointRadius = markerData.map((v) => (v !== null ? 7 : 0));
+    chart.data.datasets[1].pointBorderColor = '#0d0d0f';
+    chart.data.datasets[1].pointBorderWidth = 2;
+
+    // Baseline (no recalls)
+    chart.data.datasets[2].data = baselineCurve;
+
+    // Reference ceiling
+    chart.data.datasets[3].data = refCurve;
+
+    chart.update();
+
+    // Stats
+    const strength = calcStrength(imp, day, rec);
+    const lambda = calcLambda(imp);
+    const boost = 1 + rec * 0.2;
+
+    document.getElementById('stat-strength').textContent = strength.toFixed(3);
+    document.getElementById('stat-lambda').textContent = lambda.toFixed(4);
+    document.getElementById('stat-boost').textContent = boost.toFixed(1) + '×';
+
+    // Interpretation
+    const fadeDay = findFadeDay(imp, rec, 0.1);
+    const fadeDayBaseline = findFadeDay(imp, 0, 0.1);
+    let interp = '';
+
+    if (strength < 0.01) {
+      interp = 'This memory has effectively decayed to zero — it would need to be re-encoded from scratch.';
+    } else if (strength < 0.1) {
+      interp = `At strength ${strength.toFixed(3)}, this memory is barely a trace. Retrieval would be unreliable.`;
+    } else if (strength > 0.9) {
+      interp = `Strong retention at ${strength.toFixed(3)}. This memory is still highly accessible.`;
+    } else {
+      interp = `Current strength is ${strength.toFixed(3)}.`;
+    }
+
+    if (fadeDayBaseline !== null && rec === 0) {
+      interp += ` At this importance level, the memory fades below 0.1 strength in ~${fadeDayBaseline} days without any recall.`;
+    } else if (fadeDayBaseline !== null && fadeDay !== null && rec > 0) {
+      interp += ` Without recall, this memory would fade below 0.1 in ~${fadeDayBaseline} days. With ${rec} recall${rec > 1 ? 's' : ''}, that extends to ~${fadeDay} days.`;
+    } else if (fadeDayBaseline !== null && fadeDay === null && rec > 0) {
+      interp += ` Without recall, this memory would fade below 0.1 in ~${fadeDayBaseline} days. With ${rec} recall${rec > 1 ? 's' : ''}, it stays above 0.1 for the full 90-day window.`;
+    } else if (fadeDayBaseline === null) {
+      interp += ' At this importance, the memory stays above 0.1 for the full 90-day window even without recalls.';
+    }
+
+    document.getElementById('interpretation').textContent = interp;
+  }
+
+  impSlider.addEventListener('input', update);
+  daySlider.addEventListener('input', update);
+  recSlider.addEventListener('input', update);
+
+  update();
+</script>
+</body>
+</html>
