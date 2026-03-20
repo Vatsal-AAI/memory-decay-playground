@@ -140,6 +140,38 @@
     border: 2px solid var(--bg);
   }
 
+  .slider-framing {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 0.5rem;
+    line-height: 1.5;
+    font-style: italic;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* Philosophical readout */
+  .weights-say {
+    background: var(--surface);
+    border-left: 3px solid var(--accent3);
+    border-radius: 0 6px 6px 0;
+    padding: 1rem 1.25rem;
+    font-size: 0.8rem;
+    font-style: italic;
+    line-height: 1.65;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+
+  .weights-say .weights-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-style: normal;
+    color: var(--accent3);
+    margin-bottom: 0.4rem;
+  }
+
   /* Chart */
   .chart-wrap {
     background: var(--surface);
@@ -261,7 +293,7 @@
 <div class="container">
   <header>
     <h1>The Memory Decay Playground</h1>
-    <p class="subtitle">Ebbinghaus-based AI memory decay — interactive exploration</p>
+    <p class="subtitle">Three weights. Three philosophical choices disguised as math. Set them yourself.</p>
   </header>
 
   <div class="formula-display">
@@ -272,14 +304,17 @@
     <div class="slider-group">
       <label>Importance <span id="imp-val">0.50</span></label>
       <input type="range" id="importance" min="0.1" max="1.0" step="0.01" value="0.50">
+      <p class="slider-framing">Who decides what matters? High importance slows decay and raises starting strength — but significance isn't always loudest.</p>
     </div>
     <div class="slider-group">
-      <label>Days elapsed <span id="day-val">7</span></label>
+      <label>Decay rate λ <span id="day-val">7</span></label>
       <input type="range" id="days" min="0" max="90" step="1" value="7">
+      <p class="slider-framing">Your theory of impermanence lives here. A mood from Tuesday should fade fast. A fear carried for years probably shouldn't.</p>
     </div>
     <div class="slider-group">
-      <label>Recall count <span id="rec-val">0</span></label>
+      <label>Recall multiplier <span id="rec-val">0</span></label>
       <input type="range" id="recalls" min="0" max="20" step="1" value="0">
+      <p class="slider-framing">Does returning to a memory make it more true — or just more familiar? Trauma gets recalled constantly. That doesn't make it the right guide.</p>
     </div>
   </div>
 
@@ -307,11 +342,16 @@
     </div>
   </div>
 
+  <div class="weights-say">
+    <div class="weights-label">What your weights say</div>
+    <div id="weights-interp"></div>
+  </div>
+
   <div class="interpretation" id="interpretation"></div>
 
   <footer>
-    Concept by <a href="https://dev.to/sachit_mishra_686a94d1bb5/i-built-memory-decay-for-ai-agents-using-the-ebbinghaus-forgetting-curve-1b0e" target="_blank" rel="noopener">Sachit Mishra · DEV.to article</a><br>
-    Interactive by Vatsal Bass · Revaquo
+    Formula & original implementation: <a href="https://dev.to/sachit_mishra_686a94d1bb5/i-built-memory-decay-for-ai-agents-using-the-ebbinghaus-forgetting-curve-1b0e" target="_blank" rel="noopener">Sachit Mishra</a><br>
+    Interactive by Vatsal Bass · Aashish Intelligence
   </footer>
 </div>
 
@@ -526,6 +566,30 @@
     }
 
     document.getElementById('interpretation').textContent = interp;
+
+    // Philosophical readout
+    const highImp = imp >= 0.7;
+    const lowImp = imp < 0.4;
+    const lowLambda = lambda < 0.06;
+    const highLambda = lambda > 0.1;
+    const highRecall = rec >= 8;
+    const lowRecall = rec <= 2;
+
+    let philInterp;
+    if (highImp && lowLambda && highRecall) {
+      philInterp = "You believe the past has weight. Context accumulates. A mind should carry its history.";
+    } else if (highImp && lowLambda && lowRecall) {
+      philInterp = "You believe significance is intrinsic — not earned through repetition. Some things matter regardless of how often they're revisited.";
+    } else if (lowImp && highLambda) {
+      philInterp = "You believe a mind should live in the present. The recent truth matters more than the accumulated one.";
+    } else if (highRecall) {
+      philInterp = "You believe attention is generative — a mind becomes what it focuses on.";
+    } else if (lowRecall && highLambda) {
+      philInterp = "You believe forgetting is healthy. A mind that holds everything too tightly can't move forward.";
+    } else {
+      philInterp = "You're in the middle ground — balancing continuity and presence. Most real systems live here.";
+    }
+    document.getElementById('weights-interp').textContent = philInterp;
   }
 
   impSlider.addEventListener('input', update);
